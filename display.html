@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TV 공개 화면 | 문장 이심전심</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.dwrap{max-width:1600px;margin:auto;padding:20px}
+.dtop{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.dtitle{font-size:clamp(24px,3vw,42px);font-weight:950}
+.dgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:18px}
+.dgrid.solo{grid-template-columns:1fr}
+.dcard{background:rgba(255,255,255,.97);border-radius:26px;padding:24px}
+.mainprompt{padding:36px 24px;border-radius:22px;background:#f8f9ff;border:1px solid var(--line);text-align:center}
+.mainprompt .sentence{font-size:clamp(32px,4.2vw,62px)}
+.phase{text-align:center;font-size:clamp(24px,3vw,42px);font-weight:950;margin:10px 0 16px}
+.counter{text-align:center;font-size:clamp(42px,6vw,84px);font-weight:950;color:var(--primary);margin-top:20px}
+.mile{padding:18px;border-radius:18px;background:#f7f9fd;border:1px solid var(--line);text-align:center;margin-top:18px}
+.mile.hit{background:#fff8dc;border-color:#ead77e}
+.submitgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:14px}
+.person{padding:9px 6px;text-align:center;border-radius:12px;background:#f4f6fa;border:1px solid #e6ebf2;font-weight:850;font-size:14px;color:#667085}
+.person.done{background:#eaf8f2;border-color:#bfe6d7;color:#087154}
+.person.bonus{background:#fff5c9;border-color:#ead77b;color:#806000}
+.resultgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rgroup{padding:16px;border-radius:16px;background:#f8faff;border:1px solid var(--line)}
+.rgroup.hit{background:#edf9f5;border-color:#bfe6d8}
+.rans{font-size:clamp(20px,2vw,28px);font-weight:950}
+.tvLobby{display:flex;align-items:center;justify-content:center;min-height:620px;text-align:center}
+.tvQr{width:min(48vw,520px);height:auto;display:block;margin:14px auto;background:#fff;border:12px solid white;border-radius:18px}
+.tvUrl{font-size:clamp(14px,1.5vw,20px);font-weight:850;word-break:break-all;color:#3346a3}
+.publicHint{font-size:18px;color:var(--muted);font-weight:800;margin-top:10px}
+body:fullscreen .tvControls{display:none}
+body:fullscreen .dwrap{max-width:none}
+@media(max-width:1000px){.dgrid{grid-template-columns:1fr}.submitgrid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:650px){.dwrap{padding:10px}.submitgrid{grid-template-columns:repeat(3,1fr)}.resultgrid{grid-template-columns:1fr}.tvLobby{min-height:460px}.tvQr{width:min(78vw,440px)}}
+</style>
+</head>
+<body>
+<div class="dwrap">
+  <div class="dtop">
+    <div>
+      <div class="dtitle">🧠 <span id="roomName"></span></div>
+      <div class="round" id="roundText"></div>
+    </div>
+    <div class="actions tvControls">
+      <button class="btn primary" id="fullscreenBtn" type="button">⛶ TV 전체화면</button>
+      <a class="btn backBtn" href="/">← 반 선택</a>
+    </div>
+  </div>
+
+  <div class="dgrid" id="displayGrid">
+    <main class="dcard">
+      <div class="phase" id="phaseTitle"></div>
+
+      <section id="lobbyView" class="tvLobby">
+        <div>
+          <div class="bigmsg">📱 학생 접속</div>
+          <p class="publicHint">QR을 찍고 → 자기 반 선택 → 자기 이름 선택</p>
+          <img class="tvQr" src="/qr" alt="학생 공통 QR">
+          <div class="tvUrl" id="studentUrl"></div>
+          <div class="notice" style="margin:18px auto 0;max-width:720px">
+            학생들이 들어오면 선생님이 교사용 화면에서 <b>이 라운드 시작</b>을 눌러주세요.<br>
+            시작하면 QR은 자동으로 사라지고 게임 화면으로 바뀝니다.
+          </div>
+        </div>
+      </section>
+
+      <section id="gameView" class="hidden">
+        <div class="mainprompt">
+          <div class="badge" id="missingBadge"></div>
+          <div class="sentence" id="sentence"></div>
+          <p class="small" id="hint" style="font-size:17px;margin-top:16px"></p>
+        </div>
+
+        <div id="answerView">
+          <div class="counter" id="submittedCount"></div>
+          <div class="mile" id="mile">
+            <span>⚡ 가장 빠른 제출 +1점</span>
+            <h2 id="firstBonus">-</h2>
+          </div>
+          <h3>제출 현황</h3>
+          <div class="submitgrid" id="submitGrid"></div>
+        </div>
+
+        <div id="resultView" class="hidden">
+          <h2>🎯 이번 라운드 결과</h2>
+          <div class="resultgrid" id="resultGroups"></div>
+        </div>
+
+        <div id="finalView" class="hidden center">
+          <div class="bigmsg">🏆 최종 결과</div>
+          <h1 id="winnerText"></h1>
+        </div>
+      </section>
+    </main>
+
+    <aside class="dcard" id="rankAside">
+      <h2 style="font-size:28px">🏆 누적 순위</h2>
+      <div class="ranklist" id="rankList"></div>
+    </aside>
+  </div>
+</div>
+
+<script src="/common.js"></script>
+<script>
+const room=getRoom();
+if(!room) location.href='/';
+
+let state=null;
+const $=s=>document.querySelector(s);
+
+$('#studentUrl').textContent=location.origin+'/student-start.html';
+
+const es=new EventSource(`/events?room=${encodeURIComponent(room)}`);
+es.onmessage=e=>{
+  state=JSON.parse(e.data);
+  render();
+};
+
+function render(){
+  if(!state)return;
+
+  const r=state.round;
+  const names=state.submittedNames||[];
+  const lobby=state.phase==='lobby';
+
+  $('#roomName').textContent=state.roomName+' · 문장 이심전심';
+  $('#roundText').textContent=`ROUND ${state.current+1} / ${state.totalRounds}`;
+  $('#rankList').innerHTML=rankHTML(state.totals);
+
+  $('#lobbyView').classList.toggle('hidden',!lobby);
+  $('#gameView').classList.toggle('hidden',lobby);
+  $('#rankAside').classList.toggle('hidden',lobby);
+  $('#displayGrid').classList.toggle('solo',lobby);
+
+  if(lobby){
+    $('#phaseTitle').textContent='학생들이 접속하는 중!';
+    return;
+  }
+
+  $('#missingBadge').textContent=`빠진 부분: ${typeName[r.missing]}`;
+  $('#sentence').innerHTML=sentenceHTML(r);
+  $('#hint').textContent=r.hint;
+  $('#submittedCount').textContent=`${names.length} / ${state.players.length}명 제출`;
+  $('#firstBonus').textContent=names[0]||'-';
+  $('#mile').classList.toggle('hit',!!names[0]);
+
+  $('#submitGrid').innerHTML=state.players.map(name=>{
+    const pos=names.indexOf(name)+1;
+    return `<div class="person ${pos?'done':''} ${pos===1?'bonus':''}">
+      ${esc(name)}
+      ${pos?`<div style="font-size:12px">${pos}번째${pos===1?' · +1':''}</div>`:''}
+    </div>`;
+  }).join('');
+
+  $('#answerView').classList.add('hidden');
+  $('#resultView').classList.add('hidden');
+  $('#finalView').classList.add('hidden');
+
+  if(state.phase==='answering'){
+    $('#phaseTitle').textContent='지금 답을 제출하세요!';
+    $('#answerView').classList.remove('hidden');
+  }else if(state.phase==='revealed'){
+    $('#phaseTitle').textContent='같은 생각을 한 친구들을 확인해 보자!';
+    $('#resultView').classList.remove('hidden');
+    $('#resultGroups').innerHTML=(state.roundResult?.groups||[]).map(g=>
+      `<div class="rgroup ${g.matchPoints?'hit':''}">
+        <div class="rans">“${esc(g.display)}”</div>
+        <div>${g.names.map(esc).join(', ')}</div>
+        <div><b>${g.matchPoints?`각 +${g.matchPoints}점`:'0점'}</b></div>
+      </div>`
+    ).join('');
+  }else if(state.phase==='finished'){
+    $('#phaseTitle').textContent='게임 종료!';
+    $('#finalView').classList.remove('hidden');
+    const arr=ranked(state.totals);
+    const top=arr[0]?.score||0;
+    const winners=arr.filter(x=>x.score===top).map(x=>x.name);
+    $('#winnerText').textContent=`${winners.join(' · ')}  ${top}점`;
+  }
+}
+
+$('#fullscreenBtn').addEventListener('click',async()=>{
+  try{
+    if(!document.fullscreenElement){
+      await document.documentElement.requestFullscreen();
+    }else{
+      await document.exitFullscreen();
+    }
+  }catch(e){
+    alert('전체화면이 실행되지 않으면 F11 키를 눌러주세요.');
+  }
+});
+
+document.addEventListener('fullscreenchange',()=>{
+  $('#fullscreenBtn').textContent=document.fullscreenElement?'⛶ 전체화면 종료':'⛶ TV 전체화면';
+});
+</script>
+</body>
+</html>

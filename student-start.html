@@ -1,0 +1,20 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>학생용 | 반 선택</title><link rel="stylesheet" href="/style.css"></head>
+<body><div class="wrap" style="max-width:950px">
+  <div class="card center" style="margin-bottom:16px">
+    <div class="bigmsg">🧠 문장 이심전심</div>
+    <h2>우리 반을 선택해!</h2>
+    <p class="small" style="font-size:16px">잘못 눌러도 언제든지 <b>반 선택으로 돌아가기</b> 버튼을 누르면 돼.</p>
+  </div>
+  <div class="roomcards" id="roomCards"><div class="card">반 정보를 불러오는 중...</div></div>
+</div>
+<script>
+fetch('/api/rooms').then(r=>r.json()).then(data=>{
+  const box=document.querySelector('#roomCards');
+  box.innerHTML=data.rooms.map(room=>`
+    <section class="card roomcard center">
+      <h2>${room.name}</h2>
+      <div class="count">${room.count}명</div>
+      <a class="btn primary big" style="width:100%" href="/student.html?room=${room.id}">📱 ${room.name} 들어가기</a>
+    </section>`).join('');
+}).catch(()=>document.querySelector('#roomCards').innerHTML='<div class="card">반 정보를 불러오지 못했습니다.</div>');
+</script></body></html>

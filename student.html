@@ -1,0 +1,29 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>학생용 | 문장 이심전심</title><link rel="stylesheet" href="/style.css"></head>
+<body><div class="wrap" style="max-width:820px">
+<div class="top"><div><a class="homeLink backBtn" href="/student-start.html">← 반 선택으로 돌아가기</a><div class="brand">🧠 <span id="roomName">문장 이심전심</span></div></div><div class="badge">학생용</div></div>
+<div id="joinCard" class="card center"><a class="btn backBtn" href="/student-start.html" style="margin-bottom:12px">← 반을 잘못 골랐어요</a><div class="bigmsg">친구와 생각을 맞춰라!</div><p class="small">내 이름을 고르고 참가해.</p><select id="nameSelect" style="width:min(100%,360px)"></select><div style="margin-top:12px"><button class="btn primary big" id="joinBtn">참가하기</button></div></div>
+<div id="gameCard" class="card hidden">
+<div class="top"><div><div class="round" id="roundText"></div><h2 id="hello"></h2></div><div class="actions"><button class="btn" id="changeNameBtn" type="button">이름 다시 선택</button><a class="btn backBtn" href="/student-start.html">반 다시 선택</a><div class="badge" id="phaseBadge"></div></div></div>
+<div class="prompt"><div class="badge" id="missingBadge"></div><div class="sentence" id="sentence"></div><p class="small" id="hint" style="margin-top:12px"></p></div>
+<div id="answerArea"><form id="answerForm"><div class="answerBox"><div style="flex:1"><label for="answerInput">내 답</label><input id="answerInput" autocomplete="off" placeholder="떠오른 말을 입력해!" maxlength="60"></div><button class="btn primary big" type="submit">제출!</button></div></form><div class="notice" style="margin-top:12px">⚡ 가장 먼저 제출한 1명만 +1점!<br>🔁 내가 이전 라운드에서 이미 쓴 답만 다시 사용할 수 없어. 친구가 전에 쓴 답은 사용 가능!</div></div>
+<div id="submittedArea" class="hidden center"><div class="bigmsg">제출 완료! ✅</div><p id="submitMessage"></p></div>
+<div id="waitingArea" class="hidden center"><div class="bigmsg">선생님이 라운드를 시작하면 입력할 수 있어!</div></div>
+<div id="resultArea" class="hidden"><h2>🎯 이번 결과</h2><div id="myRoundResult" class="notice ok"></div><div class="groups" id="groups" style="margin-top:12px"></div></div>
+<div id="finalArea" class="hidden center"><div class="bigmsg">🏆 게임 종료!</div><div class="ranklist" id="finalRank"></div></div>
+</div></div>
+<script src="/common.js"></script><script>
+const room=getRoom();if(!room)location.href='/';
+let state=null,myName='',lastRound=null,lastPhase=null;const $=s=>document.querySelector(s),input=$('#answerInput');
+fetch(`/api/roominfo?room=${encodeURIComponent(room)}`).then(r=>r.json()).then(info=>{if(!info.ok)throw new Error();$('#roomName').textContent=info.roomName+' · 문장 이심전심'}).catch(()=>location.href='/');
+const es=new EventSource(`/events?room=${encodeURIComponent(room)}`);
+es.onmessage=e=>{const next=JSON.parse(e.data);const roundChanged=lastRound!==null&&next.current!==lastRound;state=next;if(roundChanged)input.value='';lastRound=next.current;render();lastPhase=next.phase};
+function render(){if(!state)return;if(!myName){$('#nameSelect').innerHTML=state.players.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');return}
+const r=state.round,names=state.submittedNames||[],pos=names.indexOf(myName)+1;$('#roundText').textContent=`ROUND ${state.current+1} / ${state.totalRounds}`;$('#hello').textContent=`${myName}, 생각을 맞춰봐!`;$('#phaseBadge').textContent={lobby:'대기',answering:'제출 중',revealed:'결과 공개',finished:'종료'}[state.phase]||state.phase;$('#missingBadge').textContent=`빠진 부분: ${typeName[r.missing]}`;$('#sentence').innerHTML=sentenceHTML(r);$('#hint').textContent=r.hint;
+['#answerArea','#submittedArea','#waitingArea','#resultArea','#finalArea'].forEach(x=>$(x).classList.add('hidden'));
+if(state.phase==='answering'){if(pos>0){$('#submittedArea').classList.remove('hidden');$('#submitMessage').innerHTML=`나는 <b>${pos}번째</b>로 제출했어! ${pos===1?'<span class="bonus">⚡ +1점!</span>':''}`;}else{$('#answerArea').classList.remove('hidden');if(lastPhase!=='answering'&&document.activeElement!==input)setTimeout(()=>input.focus(),0)}}
+else if(state.phase==='revealed'){$('#resultArea').classList.remove('hidden');const rr=state.roundResult,myPoint=rr?.roundPoints?.[myName]||0,bonus=rr?.bonusMap?.[myName]||0;$('#myRoundResult').innerHTML=`이번 라운드 나는 <b>${myPoint}점</b> 획득!${bonus?' (가장 빠른 제출 +1점 포함)':''}`;$('#groups').innerHTML=(rr?.groups||[]).map(g=>`<div class="group ${g.matchPoints?'ok':''}"><div class="ans">“${esc(g.display)}”</div><div>${g.names.map(esc).join(', ')}</div><div><b>${g.matchPoints?`각 +${g.matchPoints}점`:'0점'}</b></div></div>`).join('')}
+else if(state.phase==='finished'){$('#finalArea').classList.remove('hidden');$('#finalRank').innerHTML=rankHTML(state.totals)}else $('#waitingArea').classList.remove('hidden');
+}
+$('#joinBtn').addEventListener('click',()=>{myName=$('#nameSelect').value;if(!myName)return;$('#joinCard').classList.add('hidden');$('#gameCard').classList.remove('hidden');render()});$('#changeNameBtn').addEventListener('click',()=>{myName='';input.value='';$('#gameCard').classList.add('hidden');$('#joinCard').classList.remove('hidden');render()});
+$('#answerForm').addEventListener('submit',async e=>{e.preventDefault();const answer=input.value.trim();if(!answer){alert('답을 입력해 줘!');return}try{await api(`/api/submit?room=${encodeURIComponent(room)}`,{name:myName,answer})}catch(err){alert(err.message);setTimeout(()=>input.focus(),0)}});
+</script></body></html>
